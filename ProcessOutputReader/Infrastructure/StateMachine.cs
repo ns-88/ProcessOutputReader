@@ -20,7 +20,7 @@ namespace ProcessOutputReader.Infrastructure
 
         public StateMachine()
         {
-            State = States.Undefined;
+	        State = States.Undefined;
         }
 
         private void SetReceivingStopped()

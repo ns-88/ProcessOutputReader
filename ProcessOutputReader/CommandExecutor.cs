@@ -17,8 +17,8 @@ namespace ProcessOutputReader
 		{
 			Guard.ThrowIfNull(command);
 
-			var dataSource = await _dataSourceFactory.CreateAsync(command).ConfigureAwait(false);
-			var token = new WorkToken(dataSource);
+			using var dataSource = await _dataSourceFactory.CreateAsync(command).ConfigureAwait(false);
+			using var token = new WorkToken(dataSource);
 
 			try
 			{
@@ -32,7 +32,7 @@ namespace ProcessOutputReader
 				}
 				catch (Exception ex)
 				{
-					throw new InvalidOperationException("текст", ex);
+					throw new InvalidOperationException(null, ex);
 				}
 
 				throw;

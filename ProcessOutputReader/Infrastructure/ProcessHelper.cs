@@ -5,11 +5,13 @@ namespace ProcessOutputReader.Infrastructure
 	internal class ProcessHelper : IDisposable
 	{
 		private readonly TaskCompletionSource _tcs;
+		private readonly DisposableHelper _disposableHelper;
 		public readonly Process Process;
 
 		private ProcessHelper(Process process)
 		{
 			_tcs = new TaskCompletionSource();
+			_disposableHelper = new DisposableHelper(GetType().Name);
 
 			Process = process;
 			Process.Exited += ProcessExited;
@@ -58,17 +60,26 @@ namespace ProcessOutputReader.Infrastructure
 
 		public async Task StopAsync()
 		{
+			_disposableHelper.ThrowIfDisposed();
+
 			Process.Exited -= ProcessExited;
 			Process.Kill();
 
-			try
-			{
-				await Task.WhenAny(Process.WaitForExitAsync(), _tcs.Task).ConfigureAwait(false);
-			}
-			finally
-			{
-				Process.Dispose();
-			}
+			await Task.WhenAny(Process.WaitForExitAsync(), _tcs.Task).ConfigureAwait(false);
+		}
+
+		public void Dispose()
+		{
+			if (_disposableHelper.IsDisposed)
+				return;
+
+			_disposableHelper.SetIsDisposed();
+
+			if (Process == null!)
+				return;
+
+			Process.Exited -= ProcessExited;
+			Process.Dispose();
 		}
 
 		public static async Task<ProcessHelper> CreateAsync(string processName, string args)
@@ -76,25 +87,6 @@ namespace ProcessOutputReader.Infrastructure
 			var process = await InternalStartAsync(processName, args).ConfigureAwait(false);
 
 			return new ProcessHelper(process);
-		}
-
-		public void Dispose()
-		{
-			if (Process == null!)
-			{
-				return;
-			}
-
-			Process.Exited -= ProcessExited;
-
-			try
-			{
-				Process.Kill();
-			}
-			finally
-			{
-				Process.Dispose();
-			}
 		}
 	}
 }

@@ -42,17 +42,15 @@ namespace ProcessOutputReader
 
 		protected abstract void OnDataReceive(string value);
 
-		protected static void StopReceiving()
+		protected void StopReceiving()
 		{
-			throw new OperationCanceledException();
+			throw new OperationCanceledException($"Прервано выполнение команды \"{GetType().Name}\".");
 		}
 
 		async Task ICommand.ExecuteAsync(IWorkToken token)
 		{
 			if (State != CommandStates.NotStarted)
-			{
 				throw new InvalidOperationException();
-			}
 
 			var wrapper = new WorkTokenWrapper(token, this);
 

@@ -5,6 +5,7 @@ namespace ProcessOutputReader.Infrastructure
     internal class WorkToken : IWorkToken
     {
         private readonly IDataSource _dataSource;
+        private readonly DisposableHelper _disposableHelper;
 
         public event Action<string>? DataReceived;
         public event Action<Exception>? ErrorReceived;
@@ -15,6 +16,7 @@ namespace ProcessOutputReader.Infrastructure
             Guard.ThrowIfNull(dataSource, out _dataSource);
 
             _dataSource.Changed += DataSourceChanged;
+            _disposableHelper = new DisposableHelper(GetType().Name);
         }
 
         private void DataSourceChanged(ChangedEventArgs args)
@@ -38,12 +40,25 @@ namespace ProcessOutputReader.Infrastructure
                         Volatile.Read(ref ErrorReceived)?.Invoke(args.Exception!);
                     }
                     break;
+                default:
+	                throw new ArgumentOutOfRangeException();
             }
         }
 
         public Task CancelAsync()
         {
+            _disposableHelper.ThrowIfDisposed();
+
             return _dataSource.StopUpdateAsync();
         }
+
+        public void Dispose()
+        {
+	        if (_disposableHelper.IsDisposed)
+		        return;
+
+            _disposableHelper.SetIsDisposed();
+			_dataSource.Changed -= DataSourceChanged;
+		}
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace ProcessOutputReader.Interfaces.Infrastructure
 {
-    internal interface IWorkToken
+    internal interface IWorkToken : IDisposable
     {
         event Action<string> DataReceived;
         event Action<Exception> ErrorReceived;
