@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33110.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessOutputReader", "ProcessOutputReader\ProcessOutputReader.csproj", "{5A949BCF-BFFD-4784-A776-6A2FBF5F5B09}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProcessOutputReader.Demo", "ProcessOutputReader.Demo\ProcessOutputReader.Demo.csproj", "{714AC379-9DF5-493D-BDBF-437E1038EFEE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5A949BCF-BFFD-4784-A776-6A2FBF5F5B09}.Debug|x64.ActiveCfg = Debug|x64
+		{5A949BCF-BFFD-4784-A776-6A2FBF5F5B09}.Debug|x64.Build.0 = Debug|x64
+		{5A949BCF-BFFD-4784-A776-6A2FBF5F5B09}.Release|x64.ActiveCfg = Release|x64
+		{5A949BCF-BFFD-4784-A776-6A2FBF5F5B09}.Release|x64.Build.0 = Release|x64
+		{714AC379-9DF5-493D-BDBF-437E1038EFEE}.Debug|x64.ActiveCfg = Debug|x64
+		{714AC379-9DF5-493D-BDBF-437E1038EFEE}.Debug|x64.Build.0 = Debug|x64
+		{714AC379-9DF5-493D-BDBF-437E1038EFEE}.Release|x64.ActiveCfg = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {346C64E9-D703-46E7-AF40-48B6A91EB9C7}
+	EndGlobalSection
+EndGlobal
