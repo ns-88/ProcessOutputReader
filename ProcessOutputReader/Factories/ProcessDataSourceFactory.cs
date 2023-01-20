@@ -12,7 +12,7 @@ namespace ProcessOutputReader.Factories
 		{
 			Guard.ThrowIfNull(command);
 
-			var dataSource = await EventProcessDataSource.CreateAsync(command.ProcessPath, command.Args).ConfigureAwait(false);
+			var dataSource = await EventProcessDataSource.CreateAsync(command.ProcessPath, command.Args, command.ErrorFilter).ConfigureAwait(false);
 
 			return dataSource;
 		}
