@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using ProcessOutputReader.Interfaces;
 using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader.Infrastructure.DataSources
@@ -9,13 +10,15 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 		private readonly SemaphoreSlim _semaphore;
 		private readonly CancellationTokenSource _cts;
 		private readonly DisposableHelper _disposableHelper;
+		private readonly IErrorFilter? _errorFilter;
 
-		private EventProcessDataSource(ProcessEventListener listener)
+		private EventProcessDataSource(ProcessEventListener listener, IErrorFilter? errorFilter)
 		{
 			_semaphore = new SemaphoreSlim(1);
 			_listener = listener;
 			_cts = new CancellationTokenSource();
 			_disposableHelper = new DisposableHelper(GetType().Name);
+			_errorFilter = errorFilter;
 
 			_listener.DataReceived += ListenerDataReceived;
 			_listener.ErrorReceived += ListenerErrorReceived;
@@ -87,9 +90,19 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 					}
 					else
 					{
-						using (StateMachine.SetErrorReceived())
+						if (_errorFilter == null || !_errorFilter.Filter(error))
 						{
-							await ReceiveHandlerAsync(error).ConfigureAwait(false);
+							using (StateMachine.SetErrorReceived())
+							{
+								await ReceiveHandlerAsync(error).ConfigureAwait(false);
+							}
+						}
+						else
+						{
+							using (StateMachine.SetDataReceived())
+							{
+								await ReceiveHandlerAsync(error).ConfigureAwait(false);
+							}
 						}
 					}
 				}
@@ -140,11 +153,11 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 			}
 		}
 
-		public static async Task<EventProcessDataSource> CreateAsync(string processName, string args)
+		public static async Task<EventProcessDataSource> CreateAsync(string processName, string args, IErrorFilter? errorFilter)
 		{
 			var listener = await ProcessEventListener.CreateAsync(processName, args).ConfigureAwait(false);
 
-			return new EventProcessDataSource(listener);
+			return new EventProcessDataSource(listener, errorFilter);
 		}
 	}
 }

@@ -12,6 +12,7 @@ namespace ProcessOutputReader
 		public string Args { get; }
 		public TimeSpan Timeout { get; }
 		public CommandStates State { get; private set; }
+		public IErrorFilter? ErrorFilter { get; protected set; }
 
 #nullable disable
 		private CommandBase()

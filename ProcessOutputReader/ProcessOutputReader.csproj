@@ -6,6 +6,24 @@
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 		<Nullable>enable</Nullable>
 		<Platforms>x64</Platforms>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<Title>ProcessOutputReader</Title>
+		<Description>Библиотека для запуска процесса и асинхронного чтения его потока текстовых выходных данных и потока ошибок, инкапсулирующая выполнение действия и получения данных от процесса в объекте команды.</Description>
+		<Authors>ns-88</Authors>
+		<Copyright>MIT</Copyright>
+		<PackageProjectUrl>https://github.com/ns-88/ProcessOutputReader</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/ns-88/ProcessOutputReader</RepositoryUrl>
+		<NeutralLanguage>en</NeutralLanguage>
+		<RepositoryType>git</RepositoryType>
+		<PackageReadmeFile>readme.md</PackageReadmeFile>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Include="..\readme.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
 
 </Project>

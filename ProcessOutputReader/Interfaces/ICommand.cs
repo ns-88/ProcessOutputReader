@@ -15,6 +15,7 @@ namespace ProcessOutputReader.Interfaces
 		string Args { get; }
 		TimeSpan Timeout { get; }
 		CommandStates State { get; }
+		IErrorFilter? ErrorFilter { get; }
 
 		internal Task ExecuteAsync(IWorkToken token);
 	}
