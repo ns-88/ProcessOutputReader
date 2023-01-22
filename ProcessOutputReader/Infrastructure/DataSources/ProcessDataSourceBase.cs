@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using ProcessOutputReader.Interfaces;
 using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader.Infrastructure.DataSources
@@ -6,14 +7,18 @@ namespace ProcessOutputReader.Infrastructure.DataSources
     internal abstract class ProcessDataSourceBase
     {
         private readonly StringBuilder _errorBuilder;
+
         protected readonly StateMachine StateMachine;
+        protected readonly IErrorFilter? ErrorFilter;
 
         public event Action<ChangedEventArgs>? Changed;
 
-        protected ProcessDataSourceBase()
+        protected ProcessDataSourceBase(IErrorFilter? errorFilter)
         {
             _errorBuilder = new StringBuilder();
+
             StateMachine = new StateMachine();
+            ErrorFilter = errorFilter;
         }
 
         protected async Task ReceiveHandlerAsync(string? value)
@@ -83,7 +88,14 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 
             if (error != null)
             {
-                exceptions.Add(new InvalidOperationException(error));
+	            if (ErrorFilter?.FinalFilter(error) == true)
+	            {
+                    RaiseChanged(ChangedEventArgs.FromValue(error));
+	            }
+	            else
+	            {
+		            exceptions.Add(new InvalidOperationException(error));
+	            }
             }
 
             RaiseChanged(exceptions.Count != 0

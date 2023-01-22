@@ -10,15 +10,14 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 		private readonly SemaphoreSlim _semaphore;
 		private readonly CancellationTokenSource _cts;
 		private readonly DisposableHelper _disposableHelper;
-		private readonly IErrorFilter? _errorFilter;
 
 		private EventProcessDataSource(ProcessEventListener listener, IErrorFilter? errorFilter)
+			: base(errorFilter)
 		{
 			_semaphore = new SemaphoreSlim(1);
 			_listener = listener;
 			_cts = new CancellationTokenSource();
 			_disposableHelper = new DisposableHelper(GetType().Name);
-			_errorFilter = errorFilter;
 
 			_listener.DataReceived += ListenerDataReceived;
 			_listener.ErrorReceived += ListenerErrorReceived;
@@ -90,7 +89,7 @@ namespace ProcessOutputReader.Infrastructure.DataSources
 					}
 					else
 					{
-						if (_errorFilter == null || !_errorFilter.Filter(error))
+						if (ErrorFilter == null || !ErrorFilter.Filter(error))
 						{
 							using (StateMachine.SetErrorReceived())
 							{
