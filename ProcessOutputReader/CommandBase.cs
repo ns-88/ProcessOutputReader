@@ -5,7 +5,7 @@ using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader
 {
-	[DebuggerDisplay("ProcessPath = {ProcessPath}, Args = {Args}, State = {State}")]
+	[DebuggerDisplay("ProcessPath = {ProcessPath}, Args = {Args}, State = {State}, Timeout = {Timeout}")]
 	public abstract class CommandBase : ICommand
 	{
 		public string ProcessPath { get; }
@@ -34,6 +34,11 @@ namespace ProcessOutputReader
 			Timeout = TimeSpan.FromSeconds(50);
 		}
 
+		protected CommandBase(string processPath, TimeSpan timeout) : this(processPath)
+		{
+			Timeout = timeout;
+		}
+
 		protected CommandBase(string processPath, string args, TimeSpan timeout) : this()
 		{
 			ProcessPath = Guard.ThrowIfEmptyStringRet(processPath);
@@ -45,15 +50,17 @@ namespace ProcessOutputReader
 
 		protected void StopReceiving()
 		{
-			throw new OperationCanceledException($"Прервано выполнение команды \"{GetType().Name}\".");
+			throw new OperationCanceledException(string.Format(Strings.CommandExecutionCanceled, GetType().Name));
 		}
 
 		async Task ICommand.ExecuteAsync(IWorkToken token)
 		{
 			if (State != CommandStates.NotStarted)
-				throw new InvalidOperationException();
+			{
+				throw new InvalidOperationException(Strings.CommandExecutionCannotStarted);
+			}
 
-			var wrapper = new WorkTokenWrapper(token, this);
+			using var wrapper = new WorkTokenWrapper(token, this);
 
 			try
 			{
@@ -70,7 +77,7 @@ namespace ProcessOutputReader
 
 		#region Nested types
 
-		private class WorkTokenWrapper
+		private class WorkTokenWrapper : IDisposable
 		{
 			private readonly IWorkToken _workToken;
 			private readonly TaskCompletionSource _tcs;
@@ -99,7 +106,7 @@ namespace ProcessOutputReader
 				_tcs.SetException(ex);
 			}
 
-			private async void OnDataReceived(string value)
+			private void OnDataReceived(string value)
 			{
 				try
 				{
@@ -107,18 +114,18 @@ namespace ProcessOutputReader
 				}
 				catch (OperationCanceledException)
 				{
-					try
-					{
-						await _workToken.CancelAsync();
-					}
-					catch (Exception ex)
-					{
-						_tcs.SetException(ex);
-						return;
-					}
-
-					_tcs.SetResult();
+					_tcs.SetCanceled();
 				}
+			}
+
+			public void Dispose()
+			{
+				if (_workToken == null!)
+					return;
+
+				_workToken.DataReceived -= OnDataReceived;
+				_workToken.ErrorReceived -= OnErrorReceived;
+				_workToken.Completed -= OnCompleted;
 			}
 		}
 

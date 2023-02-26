@@ -4,110 +4,92 @@ using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader.Infrastructure.DataSources
 {
-    internal abstract class ProcessDataSourceBase
-    {
-        private readonly StringBuilder _errorBuilder;
+	internal abstract class ProcessDataSourceBase
+	{
+		private readonly StringBuilder _errorBuilder;
 
-        protected readonly StateMachine StateMachine;
-        protected readonly IErrorFilter? ErrorFilter;
+		protected readonly StateMachine StateMachine;
+		protected readonly IErrorFilter? ErrorFilter;
 
-        public event Action<ChangedEventArgs>? Changed;
+		public event Action<ChangedEventArgs>? Changed;
 
-        protected ProcessDataSourceBase(IErrorFilter? errorFilter)
-        {
-            _errorBuilder = new StringBuilder();
+		protected ProcessDataSourceBase(IErrorFilter? errorFilter)
+		{
+			_errorBuilder = new StringBuilder();
 
-            StateMachine = new StateMachine();
-            ErrorFilter = errorFilter;
-        }
+			StateMachine = new StateMachine();
+			ErrorFilter = errorFilter;
+		}
 
-        protected async Task ReceiveHandlerAsync(string? value)
-        {
-            switch (StateMachine.State)
-            {
-                case States.DataReceived:
-                    {
-                        RaiseChanged(ChangedEventArgs.FromValue(value!));
-                    }
-                    break;
+		protected void ReceiveHandler(string? value)
+		{
+			switch (StateMachine.State)
+			{
+				case States.DataReceived:
+					{
+						RaiseChanged(ChangedEventArgs.FromValue(value!));
+					}
+					break;
 
-                case States.ErrorReceived:
-                    {
-                        _errorBuilder.Append(value);
-                    }
-                    break;
+				case States.ErrorReceived:
+					{
+						_errorBuilder.Append(value);
+					}
+					break;
 
-                case States.ReceivingStopped:
-                    {
-                        string? error = null;
+				case States.ReceivingStopped:
+					{
+						string? error = null;
 
-                        if (_errorBuilder.Length != 0)
-                        {
-                            error = _errorBuilder.ToString();
-                        }
+						if (_errorBuilder.Length != 0)
+						{
+							error = _errorBuilder.ToString();
+						}
 
-                        await StopUpdateInternalAsync(error).ConfigureAwait(false);
-                    }
-                    break;
+						StopUpdateInternal(error);
+					}
+					break;
 
-                case States.Undefined:
-                    {
-                        const string error = "Недопустимое состояние конечного автомата.";
+				case States.Undefined:
+					{
+						StopUpdateInternal(Strings.InvalidStateOfStateMachine);
+					}
+					break;
 
-                        await StopUpdateInternalAsync(error).ConfigureAwait(false);
-                    }
-                    break;
+				case States.Nothing:
+					return;
 
-                case States.Nothing:
-                    return;
+				default:
+					throw new ArgumentOutOfRangeException(nameof(StateMachine.State), StateMachine.State, string.Format(Strings.UnknownEnumValue, nameof(States)));
+			}
+		}
 
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
+		private void StopUpdateInternal(string? error)
+		{
+			Exception? exception = null;
 
-        private async Task StopUpdateInternalAsync(string? error)
-        {
-            Exception? exception = null;
+			if (error != null)
+			{
+				if (ErrorFilter?.FinalFilter(error) == true)
+				{
+					RaiseChanged(ChangedEventArgs.FromValue(error));
+				}
+				else
+				{
+					exception = new InvalidOperationException(error);
+				}
+			}
 
-            try
-            {
-                await StopUpdateAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-            }
+			RaiseChanged(exception != null
+				? ChangedEventArgs.FromError(exception)
+				: ChangedEventArgs.FromCompleted());
+		}
 
-            var exceptions = new List<Exception>();
+		private void RaiseChanged(ChangedEventArgs args)
+		{
+			Volatile.Read(ref Changed)?.Invoke(args);
+		}
 
-            if (exception != null)
-            {
-                exceptions.Add(exception);
-            }
-
-            if (error != null)
-            {
-	            if (ErrorFilter?.FinalFilter(error) == true)
-	            {
-                    RaiseChanged(ChangedEventArgs.FromValue(error));
-	            }
-	            else
-	            {
-		            exceptions.Add(new InvalidOperationException(error));
-	            }
-            }
-
-            RaiseChanged(exceptions.Count != 0
-                ? ChangedEventArgs.FromError(new AggregateException(exceptions))
-                : ChangedEventArgs.FromCompleted());
-        }
-
-        private void RaiseChanged(ChangedEventArgs args)
-        {
-            Volatile.Read(ref Changed)?.Invoke(args);
-        }
-
-        public abstract Task StopUpdateAsync();
-    }
+		public abstract Task StopUpdateAsync();
+	}
 }

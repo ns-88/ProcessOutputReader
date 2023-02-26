@@ -1,6 +1,7 @@
 ﻿using ProcessOutputReader.Infrastructure;
 using ProcessOutputReader.Interfaces;
 using ProcessOutputReader.Interfaces.Factories;
+using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader
 {
@@ -17,25 +18,54 @@ namespace ProcessOutputReader
 		{
 			Guard.ThrowIfNull(command);
 
-			using var dataSource = await _dataSourceFactory.CreateAsync(command).ConfigureAwait(false);
-			using var token = new WorkToken(dataSource);
+			IDataSource dataSource;
+			var exceptions = new List<Exception>();
 
 			try
 			{
-				await command.ExecuteAsync(token).WaitAsync(command.Timeout).ConfigureAwait(false);
+				dataSource = await _dataSourceFactory.CreateAsync(command).ConfigureAwait(false);
 			}
-			catch (TimeoutException)
+			catch (Exception ex)
+			{
+				throw new InvalidOperationException(Strings.StartReceivingDataNotCompleted, ex);
+			}
+
+			using (var token = new WorkToken(dataSource))
 			{
 				try
 				{
-					await dataSource.StopUpdateAsync().ConfigureAwait(false);
+					await command.ExecuteAsync(token).WaitAsync(command.Timeout).ConfigureAwait(false);
+				}
+				catch (OperationCanceledException)
+				{
+					exceptions.Add(new OperationCanceledException(Strings.CommandExecutionNotCompletedDueToCancellation));
+				}
+				catch (TimeoutException ex)
+				{
+					exceptions.Add(new TimeoutException(string.Format(Strings.CommandExecutionTimeout, command.Timeout), ex));
 				}
 				catch (Exception ex)
 				{
-					throw new InvalidOperationException(null, ex);
+					exceptions.Add(new InvalidOperationException(Strings.CommandExecutionNotCompleted, ex));
 				}
+			}
 
-				throw;
+			try
+			{
+				await dataSource.StopUpdateAsync().ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				exceptions.Add(new InvalidOperationException(Strings.StopReceivingDataNotCompleted, ex));
+			}
+			finally
+			{
+				dataSource.Dispose();
+			}
+
+			if (exceptions.Count != 0)
+			{
+				throw new AggregateException(exceptions);
 			}
 		}
 	}
