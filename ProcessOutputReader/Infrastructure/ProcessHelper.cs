@@ -38,7 +38,7 @@ namespace ProcessOutputReader.Infrastructure
 				try
 				{
 					if (!process.Start())
-						throw new InvalidOperationException($"Процесс \"{processName}\" не был успешно запущен.");
+						throw new InvalidOperationException(string.Format(Strings.ProcessNotStarted, processName));
 				}
 				catch (Exception)
 				{
@@ -63,7 +63,15 @@ namespace ProcessOutputReader.Infrastructure
 			_disposableHelper.ThrowIfDisposed();
 
 			Process.Exited -= ProcessExited;
-			Process.Kill();
+
+			try
+			{
+				Process.Kill();
+			}
+			catch (Exception ex)
+			{
+				throw new InvalidOperationException(string.Format(Strings.ProcessNotStarted, Process.ProcessName), ex);
+			}
 
 			await Task.WhenAny(Process.WaitForExitAsync(), _tcs.Task).ConfigureAwait(false);
 		}

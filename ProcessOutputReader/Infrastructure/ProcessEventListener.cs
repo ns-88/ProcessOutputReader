@@ -34,24 +34,24 @@ namespace ProcessOutputReader.Infrastructure
 			Volatile.Read(ref ErrorReceived)?.Invoke(e.Data);
 		}
 
-		private void UnsubscribeEvents()
+		private void UnsubscribeEvents(Process process)
 		{
-			var process = _helper.Process;
-
 			process.OutputDataReceived -= ProcessOutputDataReceived;
 			process.ErrorDataReceived -= ProcessErrorDataReceived;
-
-			process.CancelOutputRead();
-			process.CancelErrorRead();
 		}
 
-		public async Task StopAsync()
+		public Task StopAsync()
 		{
 			_disposableHelper.ThrowIfDisposed();
 
-			UnsubscribeEvents();
+			var process = _helper.Process;
 
-			await _helper.StopAsync().ConfigureAwait(false);
+			UnsubscribeEvents(process);
+
+			process.CancelOutputRead();
+			process.CancelErrorRead();
+
+			return _helper.StopAsync();
 		}
 
 		public void Dispose()
@@ -60,6 +60,17 @@ namespace ProcessOutputReader.Infrastructure
 				return;
 
 			_disposableHelper.SetIsDisposed();
+
+			if (_helper == null!)
+				return;
+
+			var process = _helper.Process;
+
+			if (process != null!)
+			{
+				UnsubscribeEvents(process);
+			}
+
 			_helper.Dispose();
 		}
 

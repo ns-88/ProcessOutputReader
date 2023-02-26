@@ -41,7 +41,7 @@ namespace ProcessOutputReader.Infrastructure
                     }
                     break;
                 default:
-	                throw new ArgumentOutOfRangeException();
+	                throw new ArgumentOutOfRangeException(nameof(args.Type), args.Type, string.Format(Strings.UnknownEnumValue, nameof(ChangedType)));
             }
         }
 
