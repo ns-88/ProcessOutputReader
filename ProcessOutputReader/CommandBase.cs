@@ -53,20 +53,32 @@ namespace ProcessOutputReader
 			throw new OperationCanceledException(string.Format(Strings.CommandExecutionCanceled, GetType().Name));
 		}
 
-		async Task ICommand.ExecuteAsync(IWorkToken token)
+		void ICommand.SetTimeoutState()
+		{
+			State = CommandStates.Timeout;
+		}
+
+		async Task ICommand.ExecuteAsync(IWorkToken workToken, CancellationToken token)
 		{
 			if (State != CommandStates.NotStarted)
 			{
 				throw new InvalidOperationException(Strings.CommandExecutionCannotStarted);
 			}
 
-			using var wrapper = new WorkTokenWrapper(token, this);
+			using var wrapper = new WorkTokenWrapper(workToken, this, token);
 
 			try
 			{
+				State = CommandStates.Started;
+
 				await wrapper.Task.ConfigureAwait(false);
 
 				State = CommandStates.Completed;
+			}
+			catch (OperationCanceledException)
+			{
+				State = CommandStates.Canceled;
+				throw;
 			}
 			catch (Exception)
 			{
@@ -77,23 +89,25 @@ namespace ProcessOutputReader
 
 		#region Nested types
 
-		private class WorkTokenWrapper : IDisposable
+		private readonly struct WorkTokenWrapper : IDisposable
 		{
 			private readonly IWorkToken _workToken;
 			private readonly TaskCompletionSource _tcs;
 			private readonly CommandBase _command;
+			private readonly CancellationToken _token;
 
 			public Task Task => _tcs.Task;
 
-			public WorkTokenWrapper(IWorkToken workToken, CommandBase command)
+			public WorkTokenWrapper(IWorkToken workToken, CommandBase command, CancellationToken token)
 			{
+				_workToken = workToken;
+				_command = command;
+				_token = token;
+				_tcs = new TaskCompletionSource();
+
 				workToken.DataReceived += OnDataReceived;
 				workToken.ErrorReceived += OnErrorReceived;
 				workToken.Completed += OnCompleted;
-
-				_workToken = workToken;
-				_command = command;
-				_tcs = new TaskCompletionSource();
 			}
 
 			private void OnCompleted()
@@ -108,13 +122,20 @@ namespace ProcessOutputReader
 
 			private void OnDataReceived(string value)
 			{
+				if (_token.IsCancellationRequested)
+				{
+					_tcs.TrySetCanceled(_token);
+
+					return;
+				}
+
 				try
 				{
 					_command.OnDataReceive(value);
 				}
 				catch (OperationCanceledException)
 				{
-					_tcs.SetCanceled();
+					_tcs.TrySetResult();
 				}
 			}
 

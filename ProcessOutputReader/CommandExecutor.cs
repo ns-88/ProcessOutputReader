@@ -1,10 +1,13 @@
-﻿using ProcessOutputReader.Infrastructure;
+﻿using System.Diagnostics.CodeAnalysis;
+using ProcessOutputReader.Infrastructure;
 using ProcessOutputReader.Interfaces;
 using ProcessOutputReader.Interfaces.Factories;
 using ProcessOutputReader.Interfaces.Infrastructure;
 
 namespace ProcessOutputReader
 {
+	[SuppressMessage("ReSharper", "MethodSupportsCancellation")]
+	[SuppressMessage("Reliability", "CA2016:Forward the 'CancellationToken' parameter to methods", Justification = "<Ожидание>")]
 	internal class CommandExecutor : ICommandExecutor
 	{
 		private readonly IDataSourceFactory _dataSourceFactory;
@@ -14,9 +17,14 @@ namespace ProcessOutputReader
 			Guard.ThrowIfNull(dataSourceFactory, out _dataSourceFactory);
 		}
 
-		public async Task ExecuteAsync(ICommand command)
+		public async Task ExecuteAsync(ICommand command, CancellationToken token)
 		{
 			Guard.ThrowIfNull(command);
+
+			if (token.IsCancellationRequested)
+			{
+				throw new OperationCanceledException(Strings.CommandExecutionNotCompletedDueToCancellation);
+			}
 
 			IDataSource dataSource;
 			var exceptions = new List<Exception>();
@@ -30,11 +38,11 @@ namespace ProcessOutputReader
 				throw new InvalidOperationException(Strings.StartReceivingDataNotCompleted, ex);
 			}
 
-			using (var token = new WorkToken(dataSource))
+			using (var workToken = new WorkToken(dataSource))
 			{
 				try
 				{
-					await command.ExecuteAsync(token).WaitAsync(command.Timeout).ConfigureAwait(false);
+					await command.ExecuteAsync(workToken, token).WaitAsync(command.Timeout).ConfigureAwait(false);
 				}
 				catch (OperationCanceledException)
 				{
@@ -42,6 +50,8 @@ namespace ProcessOutputReader
 				}
 				catch (TimeoutException ex)
 				{
+					command.SetTimeoutState();
+
 					exceptions.Add(new TimeoutException(string.Format(Strings.CommandExecutionTimeout, command.Timeout), ex));
 				}
 				catch (Exception ex)
