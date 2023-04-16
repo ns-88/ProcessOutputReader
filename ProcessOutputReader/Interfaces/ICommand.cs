@@ -4,9 +4,12 @@ namespace ProcessOutputReader.Interfaces
 {
 	public enum CommandStates
 	{
+		Started,
 		NotStarted,
 		Completed,
-		Faulted
+		Canceled,
+		Faulted,
+		Timeout
 	}
 
 	public interface ICommand
@@ -17,6 +20,8 @@ namespace ProcessOutputReader.Interfaces
 		CommandStates State { get; }
 		IErrorFilter? ErrorFilter { get; }
 
-		internal Task ExecuteAsync(IWorkToken token);
+		internal void SetTimeoutState();
+
+		internal Task ExecuteAsync(IWorkToken workToken, CancellationToken token = default);
 	}
 }
